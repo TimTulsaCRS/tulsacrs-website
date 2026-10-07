@@ -74,11 +74,70 @@
     margin: 0;
   }
   .services li {
+    min-width: 0;
+  }
+  .service-link {
+    align-items: center;
     background: var(--bg);
+    border: 1px solid #e1e6ea;
     border-left: 3px solid var(--accent);
-    padding: 0.6rem 0.9rem;
-    border-radius: 4px;
-    font-weight: 500;
+    border-radius: 5px;
+    color: var(--text);
+    display: flex;
+    font-weight: 600;
+    justify-content: space-between;
+    min-height: 3.1rem;
+    padding: 0.65rem 0.85rem;
+    text-decoration: none;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  }
+  .service-link::after {
+    color: var(--accent);
+    content: "→";
+    font-size: 1.15rem;
+    margin-left: 0.5rem;
+  }
+  .service-link:hover,
+  .service-link:focus-visible {
+    background: #fff4f2;
+    border-color: var(--accent);
+    color: var(--navy);
+    outline: none;
+    transform: translateY(-1px);
+  }
+  .incidents-list {
+    display: grid;
+    gap: 0.75rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .incident {
+    align-items: flex-start;
+    background: var(--bg);
+    border-left: 4px solid var(--navy);
+    border-radius: 5px;
+    display: flex;
+    gap: 0.75rem;
+    padding: 0.75rem 0.85rem;
+  }
+  .incident--fire { border-left-color: var(--accent); }
+  .incident-icon { font-size: 1.35rem; line-height: 1.3; }
+  .incident-details { min-width: 0; }
+  .incident-title {
+    color: var(--navy);
+    font-weight: 700;
+    margin: 0;
+  }
+  .incident-address { margin: 0.1rem 0; }
+  .incident-date { color: #687684; font-size: 0.85rem; margin: 0; }
+  .incident a { color: inherit; text-decoration: none; }
+  .incident a:hover .incident-title,
+  .incident a:focus-visible .incident-title { color: var(--accent); text-decoration: underline; }
+  .incidents-empty { color: #687684; margin: 0; }
+  .incidents-disclaimer { color: #687684; font-size: 0.8rem; margin: 1rem 0 0; }
+  @media (max-width: 420px) {
+    .card { padding: 1.5rem 1.25rem; }
   }
   .contact-grid {
     display: flex;
@@ -151,14 +210,22 @@
       entire process, so you have one call and one trusted partner from start to finish.
     </p>
     <ul class="services">
-      <li>Packout</li>
-      <li>Cleaning</li>
-      <li>Deodorizing</li>
-      <li>Storage</li>
-      <li>Packback</li>
-      <li>Inventory Documentation</li>
+      <li><a class="service-link" href="https://crspackout.com/packout/" target="_blank" rel="noopener">Packout</a></li>
+      <li><a class="service-link" href="https://crspackout.com/cleaning-and-restoration/" target="_blank" rel="noopener">Cleaning</a></li>
+      <li><a class="service-link" href="https://crspackout.com/services/" target="_blank" rel="noopener">Deodorizing</a></li>
+      <li><a class="service-link" href="https://crspackout.com/storage/" target="_blank" rel="noopener">Storage</a></li>
+      <li><a class="service-link" href="https://crspackout.com/packback/" target="_blank" rel="noopener">Packback</a></li>
+      <li><a class="service-link" href="https://crspackout.com/digital-inventory/" target="_blank" rel="noopener">Inventory Documentation</a></li>
     </ul>
   </div>
+
+  <section class="card" aria-labelledby="incidents-heading">
+    <h2 id="incidents-heading">Recent Local Incidents</h2>
+    <ul class="incidents-list" id="incidents-list">
+      <li class="incidents-empty">Loading recent local incidents…</li>
+    </ul>
+    <p class="incidents-disclaimer">Incident data from local fire dispatch and scanner monitoring — for informational purposes only.</p>
+  </section>
 
   <div class="card">
     <h2>Get In Touch</h2>
@@ -182,6 +249,70 @@
     </a>
   </div>
 </main>
+
+<script>
+  (async function loadIncidents() {
+    const list = document.getElementById('incidents-list');
+    const emptyMessage = 'No recent local incidents reported';
+    const formatDate = (value) => {
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return 'Date unavailable';
+      return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    };
+    try {
+      const response = await fetch('incidents.json');
+      if (!response.ok) throw new Error('Incident feed unavailable');
+      const incidents = await response.json();
+      if (!Array.isArray(incidents) || incidents.length === 0) throw new Error('No incidents');
+      const recent = incidents
+        .filter((incident) => incident && incident.occurred_at)
+        .sort((a, b) => new Date(b.occurred_at) - new Date(a.occurred_at))
+        .slice(0, 5);
+      if (recent.length === 0) throw new Error('No valid incidents');
+      list.replaceChildren(...recent.map((incident) => {
+        const item = document.createElement('li');
+        const type = incident.type === 'fire' ? 'fire' : 'water';
+        item.className = 'incident incident--' + type;
+        const icon = document.createElement('span');
+        icon.className = 'incident-icon';
+        icon.setAttribute('aria-hidden', 'true');
+        icon.textContent = type === 'fire' ? '🔥' : '💧';
+        const details = document.createElement('div');
+        details.className = 'incident-details';
+        const content = document.createElement(incident.map_url ? 'a' : 'div');
+        if (incident.map_url) {
+          try {
+            const mapUrl = new URL(incident.map_url, window.location.href);
+            if (mapUrl.protocol === 'http:' || mapUrl.protocol === 'https:') {
+              content.href = mapUrl.href;
+              content.target = '_blank';
+              content.rel = 'noopener';
+            }
+          } catch (error) { /* Ignore malformed optional map links. */ }
+        }
+        const title = document.createElement('p');
+        title.className = 'incident-title';
+        title.textContent = incident.headline || (type === 'fire' ? 'Fire incident' : 'Water incident');
+        const address = document.createElement('p');
+        address.className = 'incident-address';
+        address.textContent = incident.address || 'Tulsa, OK';
+        const date = document.createElement('p');
+        date.className = 'incident-date';
+        date.textContent = formatDate(incident.occurred_at);
+        content.append(title, address, date);
+        details.append(content);
+        item.append(icon, details);
+        return item;
+      }));
+    } catch (error) {
+      list.replaceChildren();
+      const empty = document.createElement('li');
+      empty.className = 'incidents-empty';
+      empty.textContent = emptyMessage;
+      list.append(empty);
+    }
+  }());
+</script>
 
 <footer>
   &copy; 2026 Content Recovery Specialists of Tulsa. All rights reserved.
