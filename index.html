@@ -74,11 +74,69 @@
     margin: 0;
   }
   .services li {
+    min-width: 0;
+  }
+  .service-link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    height: 100%;
     background: var(--bg);
     border-left: 3px solid var(--accent);
-    padding: 0.6rem 0.9rem;
+    color: var(--text);
+    padding: 0.75rem 0.9rem;
     border-radius: 4px;
-    font-weight: 500;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+  }
+  .service-link:hover,
+  .service-link:focus-visible {
+    background: var(--navy);
+    color: #fff;
+    transform: translateY(-2px);
+  }
+  .service-link span:last-child {
+    color: var(--accent);
+    font-size: 1.1rem;
+  }
+  .service-link:hover span:last-child,
+  .service-link:focus-visible span:last-child {
+    color: #fff;
+  }
+  .incidents-list {
+    display: grid;
+    gap: 0.75rem;
+  }
+  .incident {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.8rem 0.9rem;
+    background: var(--bg);
+    border-left: 3px solid var(--navy);
+    border-radius: 4px;
+  }
+  .incident.fire { border-left-color: var(--accent); }
+  .incident-icon { font-size: 1.25rem; line-height: 1.4; }
+  .incident-content { min-width: 0; flex: 1; }
+  .incident-heading {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.15rem;
+  }
+  .incident-heading strong { color: var(--navy); }
+  .incident-date { color: #687583; font-size: 0.85rem; white-space: nowrap; }
+  .incident-address { margin: 0; font-size: 0.95rem; }
+  .incident-address a { color: var(--text); }
+  .incident-address a:hover { color: var(--accent); }
+  .incidents-empty { color: #687583; margin: 0; }
+  .incidents-disclaimer {
+    color: #687583;
+    font-size: 0.8rem;
+    margin: 0.9rem 0 0;
   }
   .contact-grid {
     display: flex;
@@ -151,14 +209,22 @@
       entire process, so you have one call and one trusted partner from start to finish.
     </p>
     <ul class="services">
-      <li>Packout</li>
-      <li>Cleaning</li>
-      <li>Deodorizing</li>
-      <li>Storage</li>
-      <li>Packback</li>
-      <li>Inventory Documentation</li>
+      <li><a class="service-link" href="https://crspackout.com/packout/" target="_blank" rel="noopener"><span>Packout</span><span aria-hidden="true">→</span></a></li>
+      <li><a class="service-link" href="https://crspackout.com/cleaning-and-restoration/" target="_blank" rel="noopener"><span>Cleaning</span><span aria-hidden="true">→</span></a></li>
+      <li><a class="service-link" href="https://crspackout.com/services/" target="_blank" rel="noopener"><span>Deodorizing</span><span aria-hidden="true">→</span></a></li>
+      <li><a class="service-link" href="https://crspackout.com/storage/" target="_blank" rel="noopener"><span>Storage</span><span aria-hidden="true">→</span></a></li>
+      <li><a class="service-link" href="https://crspackout.com/packback/" target="_blank" rel="noopener"><span>Packback</span><span aria-hidden="true">→</span></a></li>
+      <li><a class="service-link" href="https://crspackout.com/digital-inventory/" target="_blank" rel="noopener"><span>Inventory Documentation</span><span aria-hidden="true">→</span></a></li>
     </ul>
   </div>
+
+  <section class="card" aria-labelledby="incidents-heading">
+    <h2 id="incidents-heading">Recent Local Incidents</h2>
+    <div id="incidents-list" class="incidents-list" aria-live="polite">
+      <p class="incidents-empty">No recent local incidents reported</p>
+    </div>
+    <p class="incidents-disclaimer">Incident data from local fire dispatch and scanner monitoring — for informational purposes only.</p>
+  </section>
 
   <div class="card">
     <h2>Get In Touch</h2>
@@ -186,6 +252,80 @@
 <footer>
   &copy; 2026 Content Recovery Specialists of Tulsa. All rights reserved.
 </footer>
+
+<script>
+  const incidentsList = document.getElementById('incidents-list');
+
+  function formatIncidentDate(value) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const days = Math.floor((Date.now() - date.getTime()) / 86400000);
+    if (days >= 0 && days < 7) return days === 0 ? 'Today' : `${days} day${days === 1 ? '' : 's'} ago`;
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  function renderIncidents(incidents) {
+    const recent = incidents
+      .filter((incident) => incident && incident.occurred_at)
+      .sort((a, b) => new Date(b.occurred_at) - new Date(a.occurred_at))
+      .slice(0, 5);
+    incidentsList.replaceChildren();
+    if (!recent.length) {
+      const empty = document.createElement('p');
+      empty.className = 'incidents-empty';
+      empty.textContent = 'No recent local incidents reported';
+      incidentsList.append(empty);
+      return;
+    }
+    recent.forEach((incident) => {
+      const type = incident.type === 'fire' ? 'fire' : 'water';
+      const item = document.createElement('article');
+      item.className = `incident ${type}`;
+      const icon = document.createElement('span');
+      icon.className = 'incident-icon';
+      icon.setAttribute('aria-hidden', 'true');
+      icon.textContent = type === 'fire' ? '🔥' : '💧';
+      const content = document.createElement('div');
+      content.className = 'incident-content';
+      const heading = document.createElement('div');
+      heading.className = 'incident-heading';
+      const title = document.createElement('strong');
+      title.textContent = incident.headline || (type === 'fire' ? 'Fire incident' : 'Water incident');
+      const date = document.createElement('time');
+      date.className = 'incident-date';
+      date.dateTime = incident.occurred_at;
+      date.textContent = formatIncidentDate(incident.occurred_at);
+      heading.append(title, date);
+      const address = document.createElement('p');
+      address.className = 'incident-address';
+      address.textContent = incident.address || 'Tulsa, Oklahoma';
+      if (incident.map_url) {
+        const link = document.createElement('a');
+        link.href = incident.map_url;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        link.textContent = address.textContent;
+        address.replaceChildren(link);
+      }
+      content.append(heading, address);
+      item.append(icon, content);
+      incidentsList.append(item);
+    });
+  }
+
+  async function loadIncidents() {
+    try {
+      const response = await fetch('incidents.json');
+      if (!response.ok) throw new Error(`Incident feed returned ${response.status}`);
+      const incidents = await response.json();
+      renderIncidents(Array.isArray(incidents) ? incidents : []);
+    } catch (error) {
+      renderIncidents([]);
+    }
+  }
+
+  loadIncidents();
+</script>
 
 </body>
 </html>
