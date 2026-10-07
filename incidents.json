@@ -1,0 +1,23 @@
+[
+  {
+    "type": "fire",
+    "headline": "Building Fire",
+    "address": "32304 South Garnet Road, Tulsa, OK",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=32304+South+Garnet+Road+Tulsa+OK",
+    "occurred_at": "2026-10-06T23:12:00-05:00"
+  },
+  {
+    "type": "water",
+    "headline": "Water / Technical Rescue",
+    "address": "4844 East 50th Street, Tulsa, OK",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=4844+East+50th+Street+Tulsa+OK",
+    "occurred_at": "2026-10-05T16:49:00-05:00"
+  },
+  {
+    "type": "fire",
+    "headline": "Vehicle Fire",
+    "address": "1100 South Denver Avenue, Tulsa, OK",
+    "map_url": "https://www.google.com/maps/search/?api=1&query=1100+South+Denver+Avenue+Tulsa+OK",
+    "occurred_at": "2026-10-03T09:30:00-05:00"
+  }
+]
