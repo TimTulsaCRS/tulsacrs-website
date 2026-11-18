@@ -1,0 +1,86 @@
+name: Protect email signature assets
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  protect-assets:
+    name: protect-assets
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Protect live email signature assets
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+          PUSH_AFTER_SHA: ${{ github.event.after }}
+        run: |
+          set -euo pipefail
+
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            diff_output=$(git diff --name-status --find-renames "$PR_BASE_SHA...$PR_HEAD_SHA" -- assets/)
+          else
+            if [ "$PUSH_BEFORE_SHA" = "0000000000000000000000000000000000000000" ]; then
+              diff_output=$(git diff-tree --root --name-status --find-renames "$PUSH_AFTER_SHA" -- assets/)
+            else
+              diff_output=$(git diff --name-status --find-renames "$PUSH_BEFORE_SHA..$PUSH_AFTER_SHA" -- assets/)
+            fi
+          fi
+
+          offenders=()
+          while IFS=$'\t' read -r status first_path second_path; do
+            [ -n "$status" ] || continue
+            case "$status" in
+              D|M|T)
+                offenders+=("$first_path|$([ "$status" = D ] && printf deleted || ([ "$status" = M ] && printf modified || printf type-changed))")
+                ;;
+              R*)
+                offenders+=("$first_path|renamed")
+                if [[ "$second_path" == assets/* ]]; then
+                  offenders+=("$second_path|renamed")
+                fi
+                ;;
+              C*)
+                offenders+=("$first_path|copied")
+                if [[ "$second_path" == assets/* ]]; then
+                  offenders+=("$second_path|copied")
+                fi
+                ;;
+            esac
+          done <<< "$diff_output"
+
+          if [ "${#offenders[@]}" -gt 0 ]; then
+            echo '::error::Protected email signature assets were changed.'
+            echo ''
+            echo '============================================================'
+            echo '⚠️⚠️ STOP — EMAIL SIGNATURE DEPENDENCY'
+            echo 'These changes break every CRS email signature.'
+            echo 'Revert them. Changes need Tim Odell’s written approval.'
+            echo '============================================================'
+            for offender in "${offenders[@]}"; do
+              path=${offender%%|*}
+              action=${offender#*|}
+              if [[ "$path" == assets/* ]]; then
+                display_path=${path#assets/}
+              else
+                display_path=$path
+              fi
+              echo "⚠️ assets/$display_path was $action."
+              echo "::error file=$path::assets/$display_path was $action; revert it."
+            done
+            exit 1
+          fi
+
+          echo 'No protected assets were deleted, renamed, modified, copied, or type-changed.'
